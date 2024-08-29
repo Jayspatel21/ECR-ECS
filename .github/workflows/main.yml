@@ -52,9 +52,8 @@ jobs:
       - name: Run ECS Task with latest image
         run: |
           aws ecs run-task \
-            --cluster ${{ env.CLUSTER_NAME }} \
-            --launch-type EC2 \
-            --task-definition ${{ env.ECR_REPOSITORY }} \
-            --overrides '{"containerOverrides":[{"name":"demo","image":"'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'"}]}' \
-            --count 1 \
-            --region ${{ env.AWS_REGION }}
+          --cluster ${{ env.CLUSTER_NAME }} \
+          --launch-type EC2 \
+          --task-definition demo \
+          --count 1 \
+          --region ${{ env.AWS_REGION }}
