@@ -53,7 +53,6 @@ jobs:
                 "name": "demo",
                 "image": "'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'",
                 "essential": true,
-                "memory": 2048,
                 "cpu": 1024,
                 "portMappings": [
                   {
