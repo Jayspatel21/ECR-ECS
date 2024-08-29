@@ -54,7 +54,13 @@ jobs:
                 "image": "'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'",
                 "essential": true,
                 "memory": 2048,
-                "cpu": 1024
+                "cpu": 1024,
+                "portMappings": [
+                  {
+                    "containerPort": 1400,  # Replace with your container's port
+                    "hostPort": 1400        # Replace with the port on the host (EC2 instance)
+                  }
+                ]
               }
             ]' \
             --region ${{ env.AWS_REGION }} \
@@ -77,4 +83,5 @@ jobs:
             --task-definition $NEW_TASK_DEFINITION_ARN \
             --count 1 \
             --region ${{ env.AWS_REGION }}
+
 
