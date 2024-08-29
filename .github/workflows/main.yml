@@ -60,6 +60,14 @@ jobs:
             --region ${{ env.AWS_REGION }} \
             | jq -r '.taskDefinition.taskDefinitionArn' > task_definition_arn.txt
 
+      - name: Stop existing tasks
+        run: |
+          TASK_ARNS=$(aws ecs list-tasks --cluster ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }} --query "taskArns[]" --output text)
+          for TASK_ARN in $TASK_ARNS; do
+            echo "Stopping task: $TASK_ARN"
+            aws ecs stop-task --cluster ${{ env.CLUSTER_NAME }} --task $TASK_ARN --region ${{ env.AWS_REGION }}
+          done
+
       - name: Run ECS Task with the new image
         run: |
           NEW_TASK_DEFINITION_ARN=$(cat task_definition_arn.txt)
@@ -69,3 +77,4 @@ jobs:
             --task-definition $NEW_TASK_DEFINITION_ARN \
             --count 1 \
             --region ${{ env.AWS_REGION }}
+
