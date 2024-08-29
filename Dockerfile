@@ -50,4 +50,4 @@ COPY . .
 EXPOSE 1400
 
 # Start the application using dotenv to load environment variables
-CMD ["sh", "-c", "node -r dotenv/config index.js dotenv_config_path=.env"]
+CMD ["node", "index.js"]
