@@ -6,12 +6,9 @@ on:
       - main
 
 env:
-  AWS_REGION: ap-south-1
+  AWS_REGION: us-east-1
   ECR_REPOSITORY: demo
-  BUILD_NUMBER: ${{ github.run_number }}
-  CLUSTER_NAME: demo-cluster
-  SERVICE_NAME: demo-services 
-
+  CLUSTER_NAME: demo
 
 jobs:
   deploy:
@@ -33,30 +30,31 @@ jobs:
           aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
 
       - name: Build Docker image
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
-          docker build -t demo:${{ env.BUILD_NUMBER }} .
-
-      - name: Tag Docker image with build number
-        run: |
-          docker tag sumit:${{ env.BUILD_NUMBER }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.BUILD_NUMBER }}
+          docker build --no-cache \
+          --build-arg AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+          --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+          --build-arg AWS_REGION=${{ env.AWS_REGION }} \
+          -t demo:latest .
 
       - name: Tag Docker image as latest
         run: |
-          docker tag sumit:${{ env.BUILD_NUMBER }} ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
-
-      - name: Push Docker image with build number
-        run: |
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ env.BUILD_NUMBER }}
+          docker tag demo:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
 
       - name: Push Docker image as latest
         run: |
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
 
-      - name: Update ECS Service
+      - name: Run ECS Task with latest image
         run: |
-          aws ecs update-service --cluster ${{ env.CLUSTER_NAME }} --service ${{ env.SERVICE_NAME }} --force-new-deployment --region ${{ env.AWS_REGION }}
-        
-      - name: Rollback ECS Service to Previous Task Definition
-        if: failure()  # Only execute if the deployment fails
-        run: |
-          aws ecs update-service --cluster ${{ env.CLUSTER_NAME }} --service ${{ env.SERVICE_NAME }} --task-definition ${{ env.PREVIOUS_TASK_DEFINITION_ARN }} --region ${{ env.AWS_REGION }}
+          aws ecs run-task \
+            --cluster ${{ env.CLUSTER_NAME }} \
+            --launch-type EC2 \
+            --task-definition ${{ env.ECR_REPOSITORY }} \
+            --overrides '{"containerOverrides":[{"name":"demo","image":"'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'"}]}' \
+            --count 1 \
+            --region ${{ env.AWS_REGION }}
