@@ -54,6 +54,6 @@ jobs:
           aws ecs run-task \
           --cluster ${{ env.CLUSTER_NAME }} \
           --launch-type EC2 \
-          --task-definition demo \
+          --task-definition demo-1 \
           --count 1 \
           --region ${{ env.AWS_REGION }}
