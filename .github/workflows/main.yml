@@ -73,6 +73,7 @@ jobs:
             ]' \
             --region ${{ env.AWS_REGION }} \
             | jq -r '.taskDefinition.taskDefinitionArn')
+          echo "TASK_DEFINITION_ARN=$TASK_DEFINITION_ARN" >> $GITHUB_ENV
           echo "::set-output name=task_definition_arn::$TASK_DEFINITION_ARN"
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
