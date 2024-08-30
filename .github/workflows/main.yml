@@ -9,7 +9,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: demo
   CLUSTER_NAME: demo
-  SERVICE_NAME: demo-service
+  SERVICE_NAME: test-service
 
 jobs:
   deploy:
@@ -30,35 +30,27 @@ jobs:
         run: |
           aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
           docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Build Docker image
         run: |
           docker build --no-cache --build-arg AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --build-arg AWS_REGION=${{ env.AWS_REGION }} -t demo:latest .
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Tag Docker image as latest
         run: |
           docker tag demo:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Push Docker image as latest
         run: |
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Register new task definition revision
         id: register-task-definition
         run: |
           TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
-            --family demo-1 \
+            --family test-2 \
             --container-definitions '[
               {
-                "name": "demo",
+                "name": "test",
                 "image": "'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'",
                 "essential": true,
                 "memory": 1536,
@@ -75,8 +67,10 @@ jobs:
             | jq -r '.taskDefinition.taskDefinitionArn')
           echo "TASK_DEFINITION_ARN=$TASK_DEFINITION_ARN" >> $GITHUB_ENV
           echo "::set-output name=task_definition_arn::$TASK_DEFINITION_ARN"
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
+
+      - name: debug Check Task Definition ARN
+        run: |
+          echo "Registered Task Definition ARN: ${{ steps.register-task-definition.outputs.task_definition_arn }}"
 
       - name: Update ECS service with the new task definition
         run: |
@@ -94,8 +88,6 @@ jobs:
             --cluster ${{ env.CLUSTER_NAME }} \
             --services ${{ env.SERVICE_NAME }} \
             --region ${{ env.AWS_REGION }}
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Stop and remove old tasks
         run: |
@@ -111,6 +103,7 @@ jobs:
       - name: Remove unused Docker images
         run: |
           echo "Removing unused images"
+          docker ps -a --filter "ancestor=demo:latest" --format "{{.ID}}" | xargs -r docker rm -f
           docker image prune -f
         env:
           AWS_REGION: ${{ env.AWS_REGION }}
