@@ -186,12 +186,17 @@ jobs:
 
       - name: Update ECS service with the new task definition
         run: |
-          aws ecs update-service \
-            --cluster ${{ env.CLUSTER_NAME }} \
-            --service ${{ env.SERVICE_NAME }} \
-            --task-definition ${{ steps.register-task-definition.outputs.task_definition_arn }} \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
+            aws ecs update-service \
+              --cluster ${{ env.CLUSTER_NAME }} \
+              --service ${{ env.SERVICE_NAME }} \
+              --task-definition ${{ env.TASK_DEFINITION_ARN }} \
+              --force-new-deployment \
+              --placement-strategy "type=spread,field=instanceId" \
+              --placement-strategy "type=binpack,field=memory" \
+              --region ${{ env.AWS_REGION }}
+        env:
+            TASK_DEFINITION_ARN: ${{ env.TASK_DEFINITION_ARN }}
+        
 
       - name: Wait for service stability
         run: |
