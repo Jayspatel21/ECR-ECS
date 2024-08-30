@@ -175,7 +175,7 @@ jobs:
               }
             ]' \
             --requires-compatibilities "EC2" \
-            --network-mode "default" \
+            --network-mode "bridge" \
             --cpu "1024" \
             --memory "1536" \
             --execution-role-arn ${{ env.ECS_EXECUTION_ROLE_ARN }} \
