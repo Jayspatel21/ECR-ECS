@@ -1,3 +1,113 @@
+# name: ECS Deployment
+
+# on:
+#   push:
+#     branches:
+#       - main
+
+# env:
+#   AWS_REGION: us-east-1
+#   ECR_REPOSITORY: demo
+#   CLUSTER_NAME: demo
+#   SERVICE_NAME: test-service
+
+# jobs:
+#   deploy:
+#     runs-on: ubuntu-latest
+
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v3
+
+#       - name: Set up AWS CLI
+#         uses: aws-actions/configure-aws-credentials@v3
+#         with:
+#           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+#           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+#           aws-region: ${{ env.AWS_REGION }}
+
+#       - name: Log in to Amazon ECR
+#         run: |
+#           aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+#           docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+#       - name: Build Docker image
+#         run: |
+#           docker build --no-cache --build-arg AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --build-arg AWS_REGION=${{ env.AWS_REGION }} -t demo:latest .
+
+#       - name: Tag Docker image as latest
+#         run: |
+#           docker tag demo:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+
+#       - name: Push Docker image as latest
+#         run: |
+#           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+
+#       - name: Register new task definition revision
+#         id: register-task-definition
+#         run: |
+#           TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
+#             --family test-2 \
+#             --container-definitions '[
+#               {
+#                 "name": "test",
+#                 "image": "'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'",
+#                 "essential": true,
+#                 "memory": 1536,
+#                 "cpu": 1024,
+#                 "portMappings": [
+#                   {
+#                     "containerPort": 1400,
+#                     "hostPort": 1400
+#                   }
+#                 ]
+#               }
+#             ]' \
+#             --region ${{ env.AWS_REGION }} \
+#             | jq -r '.taskDefinition.taskDefinitionArn')
+#           echo "TASK_DEFINITION_ARN=$TASK_DEFINITION_ARN" >> $GITHUB_ENV
+#           echo "::set-output name=task_definition_arn::$TASK_DEFINITION_ARN"
+
+#       - name: debug Check Task Definition ARN
+#         run: |
+#           echo "Registered Task Definition ARN: ${{ steps.register-task-definition.outputs.task_definition_arn }}"
+
+#       - name: Update ECS service with the new task definition
+#         run: |
+#           aws ecs update-service \
+#             --cluster ${{ env.CLUSTER_NAME }} \
+#             --service ${{ env.SERVICE_NAME }} \
+#             --task-definition ${{ steps.register-task-definition.outputs.task_definition_arn }} \
+#             --region ${{ env.AWS_REGION }}
+#         env:
+#           AWS_REGION: ${{ env.AWS_REGION }}
+
+#       - name: Wait for service stability
+#         run: |
+#           aws ecs wait services-stable \
+#             --cluster ${{ env.CLUSTER_NAME }} \
+#             --services ${{ env.SERVICE_NAME }} \
+#             --region ${{ env.AWS_REGION }}
+
+#       - name: Stop and remove old tasks
+#         run: |
+#           echo "Stopping and removing old tasks"
+#           TASK_ARNS=$(aws ecs list-tasks --cluster ${{ env.CLUSTER_NAME }} --service-name ${{ env.SERVICE_NAME }} --desired-status RUNNING --region ${{ env.AWS_REGION }} --query "taskArns[]" --output text)
+#           for TASK_ARN in $TASK_ARNS; do
+#             echo "Stopping task: $TASK_ARN"
+#             aws ecs stop-task --cluster ${{ env.CLUSTER_NAME }} --task $TASK_ARN --region ${{ env.AWS_REGION }}
+#           done
+#         env:
+#           AWS_REGION: ${{ env.AWS_REGION }}
+
+#       - name: Remove unused Docker images
+#         run: |
+#           echo "Removing unused images"
+#           docker ps -a --filter "ancestor=demo:latest" --format "{{.ID}}" | xargs -r docker rm -f
+#           docker image prune -f
+#         env:
+#           AWS_REGION: ${{ env.AWS_REGION }}
+
 name: ECS Deployment
 
 on:
@@ -9,7 +119,8 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: demo
   CLUSTER_NAME: demo
-  SERVICE_NAME: test-service
+  SERVICE_NAME: demo-service
+  ECS_EXECUTION_ROLE_ARN: ecsTaskExecutionRole
 
 jobs:
   deploy:
@@ -63,14 +174,15 @@ jobs:
                 ]
               }
             ]' \
+            --requires-compatibilities "EC2" \
+            --network-mode "default" \
+            --cpu "1024" \
+            --memory "1536" \
+            --execution-role-arn ${{ env.ECS_EXECUTION_ROLE_ARN }} \
             --region ${{ env.AWS_REGION }} \
             | jq -r '.taskDefinition.taskDefinitionArn')
           echo "TASK_DEFINITION_ARN=$TASK_DEFINITION_ARN" >> $GITHUB_ENV
           echo "::set-output name=task_definition_arn::$TASK_DEFINITION_ARN"
-
-      - name: debug Check Task Definition ARN
-        run: |
-          echo "Registered Task Definition ARN: ${{ steps.register-task-definition.outputs.task_definition_arn }}"
 
       - name: Update ECS service with the new task definition
         run: |
@@ -78,9 +190,8 @@ jobs:
             --cluster ${{ env.CLUSTER_NAME }} \
             --service ${{ env.SERVICE_NAME }} \
             --task-definition ${{ steps.register-task-definition.outputs.task_definition_arn }} \
+            --force-new-deployment \
             --region ${{ env.AWS_REGION }}
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Wait for service stability
         run: |
@@ -97,13 +208,9 @@ jobs:
             echo "Stopping task: $TASK_ARN"
             aws ecs stop-task --cluster ${{ env.CLUSTER_NAME }} --task $TASK_ARN --region ${{ env.AWS_REGION }}
           done
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
 
       - name: Remove unused Docker images
         run: |
           echo "Removing unused images"
           docker ps -a --filter "ancestor=demo:latest" --format "{{.ID}}" | xargs -r docker rm -f
           docker image prune -f
-        env:
-          AWS_REGION: ${{ env.AWS_REGION }}
