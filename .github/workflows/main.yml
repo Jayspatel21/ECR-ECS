@@ -337,6 +337,7 @@ env:
   ECR_REPOSITORY: demo-bb
   CLUSTER_NAME: demo-ecs
   SERVICE_NAME: test-svc
+  TASK_NAME: test-demo
   ECS_EXECUTION_ROLE_ARN: arn:aws:iam::580655243880:role/ecsTaskExecutionRole
 
 jobs:
@@ -374,7 +375,7 @@ jobs:
         id: task-def
         run: |
           # Get the current task definition (use task definition name, not service name)
-          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition test-demo | jq '.taskDefinition')
+          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition ${{ env.TASK_NAME }} | jq '.taskDefinition')
         
           # Replace the image in the task definition
           NEW_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"
@@ -396,3 +397,8 @@ jobs:
         run: |
           # Update ECS service to use the new task definition
           aws ecs update-service --cluster ${{ env.CLUSTER_NAME }} --service ${{ env.SERVICE_NAME }} --task-definition ${{ steps.task-def.outputs['task-def-arn'] }}
+
+      - name: Force New Deployment
+        run: |
+          # Force a new deployment to start new tasks and stop old ones
+          aws ecs update-service --cluster ${{ env.CLUSTER_NAME }} --service ${{ env.SERVICE_NAME }} --force-new-deployment
