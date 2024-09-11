@@ -231,7 +231,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: demo-bb
   CLUSTER_NAME: ecs-demo
-  SERVICE_NAME: demo-service-1
+  SERVICE_NAME: demo-service
   ECS_EXECUTION_ROLE_ARN: arn:aws:iam::580655243880:role/ecsTaskExecutionRole
 
 jobs:
