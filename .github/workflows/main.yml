@@ -275,8 +275,6 @@ jobs:
                 "name": "demo",
                 "image": "'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'",
                 "essential": true,
-                "memory": 2048,
-                "cpu": 1024,
                 "portMappings": [
                   {
                     "containerPort": 1400,
@@ -288,7 +286,7 @@ jobs:
             --requires-compatibilities "EC2" \
             --network-mode "bridge" \
             --cpu "1024" \
-            --memory "3072" \
+            --memory "2048" \
             --execution-role-arn ${{ env.ECS_EXECUTION_ROLE_ARN }} \
             --region ${{ env.AWS_REGION }} \
             | jq -r '.taskDefinition.taskDefinitionArn')
@@ -310,7 +308,9 @@ jobs:
           aws ecs wait services-stable \
             --cluster ${{ env.CLUSTER_NAME }} \
             --services ${{ env.SERVICE_NAME }} \
-            --region ${{ env.AWS_REGION }}
+            --region ${{ env.AWS_REGION }} \
+            --max-attempts 60 \ 
+            --delay 20 
 
       - name: Stop and remove old tasks
         run: |
