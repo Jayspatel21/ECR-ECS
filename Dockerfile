@@ -1,11 +1,3 @@
-# FROM node:18
-# WORKDIR /app
-# COPY package*.json ./
-# RUN npm install
-# COPY . .
-# EXPOSE 1400
-# CMD ["node", "index.js"]
-
 # Use an official Node.js image as the base image
 FROM node:18
 
@@ -28,18 +20,18 @@ ARG AWS_ACCESS_KEY_ID
 ARG AWS_SECRET_ACCESS_KEY
 ARG AWS_REGION
 
-# # Set environment variables for AWS CLI
-# ENV AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}
-# ENV AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}
-# ENV AWS_DEFAULT_REGION='us-east-1'
+# Set environment variables for AWS CLI
+ENV AWS_ACCESS_KEY_ID=${env.AWS_ACCESS_KEY_ID}
+ENV AWS_SECRET_ACCESS_KEY=${env.AWS_SECRET_ACCESS_KEY}
+ENV AWS_DEFAULT_REGION='us-east-1'
 
 # Configure AWS CLI
-# RUN aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID} && \
-#     aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY} && \
-#     aws configure set region ${AWS_DEFAULT_REGION}
+RUN aws configure set aws_access_key_id ${AWS_ACCESS_KEY_ID} && \
+    aws configure set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY} && \
+    aws configure set region ${AWS_DEFAULT_REGION}
 
 # Fetch secrets and store them in .env
-RUN aws secretsmanager get-secret-value --secret-id Envfile --region us-east-1 | \
+RUN aws secretsmanager get-secret-value --secret-id env-test --region us-east-1 | \
     jq -r '.SecretString | fromjson | to_entries | .[] | "\(.key)=\(.value)"' > .env && \
     cat .env
 

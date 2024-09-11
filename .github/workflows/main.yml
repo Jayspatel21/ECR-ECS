@@ -229,9 +229,9 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: demo
-  CLUSTER_NAME: demo
-  SERVICE_NAME: test-service
+  ECR_REPOSITORY: demo-bb
+  CLUSTER_NAME: demo-ecs
+  SERVICE_NAME: demo-svc
   ECS_EXECUTION_ROLE_ARN: arn:aws:iam::580655243880:role/ecsTaskExecutionRole
 
 jobs:
@@ -256,11 +256,11 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build --no-cache -t demo:latest .
+          docker build --no-cache --build-arg AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} --build-arg AWS_REGION=${{ env.AWS_REGION }} -t demo-bb:latest .
 
       - name: Tag Docker image as latest
         run: |
-          docker tag demo:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+          docker tag demo-bb:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
 
       - name: Push Docker image as latest
         run: |
@@ -270,13 +270,13 @@ jobs:
         id: register-task-definition
         run: |
           TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
-            --family test-2 \
+            --family test-demo \
             --container-definitions '[
               {
-                "name": "test",
+                "name": "demo",
                 "image": "'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'",
                 "essential": true,
-                "memory": 1536,
+                "memory": 3072,
                 "cpu": 1024,
                 "portMappings": [
                   {
@@ -289,7 +289,7 @@ jobs:
             --requires-compatibilities "EC2" \
             --network-mode "bridge" \
             --cpu "1024" \
-            --memory "1536" \
+            --memory "3072" \
             --execution-role-arn ${{ env.ECS_EXECUTION_ROLE_ARN }} \
             --region ${{ env.AWS_REGION }} \
             | jq -r '.taskDefinition.taskDefinitionArn')
