@@ -231,7 +231,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: demo-bb
   CLUSTER_NAME: ecs-demo
-  SERVICE_NAME: demo-svc
+  SERVICE_NAME: demo-service-1
   ECS_EXECUTION_ROLE_ARN: arn:aws:iam::580655243880:role/ecsTaskExecutionRole
 
 jobs:
@@ -269,13 +269,13 @@ jobs:
         id: register-task-definition
         run: |
           TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
-            --family test-demo \
+            --family demo-bb-1 \
             --container-definitions '[
               {
                 "name": "demo",
                 "image": "'"${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"'",
                 "essential": true,
-                "memory": 3072,
+                "memory": 2048,
                 "cpu": 1024,
                 "portMappings": [
                   {
