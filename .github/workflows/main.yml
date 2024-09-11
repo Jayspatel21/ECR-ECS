@@ -269,7 +269,7 @@ jobs:
         id: register-task-definition
         run: |
           TASK_DEFINITION_ARN=$(aws ecs register-task-definition \
-            --family demo-bb-1 \
+            --family demo-bb \
             --container-definitions '[
               {
                 "name": "demo",
