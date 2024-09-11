@@ -308,9 +308,7 @@ jobs:
           aws ecs wait services-stable \
             --cluster ${{ env.CLUSTER_NAME }} \
             --services ${{ env.SERVICE_NAME }} \
-            --region ${{ env.AWS_REGION }} \
-            --max-attempts 60 \ 
-            --delay 20 
+            --region ${{ env.AWS_REGION }}
 
       - name: Stop and remove old tasks
         run: |
