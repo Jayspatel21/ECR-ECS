@@ -398,6 +398,17 @@ jobs:
           # Update ECS service to use the new task definition
           aws ecs update-service --cluster ${{ env.CLUSTER_NAME }} --service ${{ env.SERVICE_NAME }} --task-definition ${{ steps.task-def.outputs['task-def-arn'] }}
 
+      - name: Stop Running Tasks
+        run: |
+          # Get the list of running tasks in the service
+          RUNNING_TASKS=$(aws ecs list-tasks --cluster ${{ env.CLUSTER_NAME }} --service-name ${{ env.SERVICE_NAME }} --desired-status RUNNING | jq -r '.taskArns[]')
+
+          # Stop each running task one by one
+          for TASK in $RUNNING_TASKS; do
+            aws ecs stop-task --cluster ${{ env.CLUSTER_NAME }} --task $TASK
+            echo "Stopped task: $TASK"
+          done
+          
       - name: Force New Deployment
         run: |
           # Force a new deployment to start new tasks and stop old ones
