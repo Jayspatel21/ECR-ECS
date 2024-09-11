@@ -6,7 +6,7 @@ const app = express();
 const PORT = process.env.API_PORT;
 
 app.get('/', (req, res) => {
-  res.send(`Hello Jayyyyyyyyyyyyydddyyyy DevOpsdddddddddddd..... ECS-ECR new!!!!!!! ${process.env.ENV_NAME}`);
+  res.send(`Hello Devopsss... ECS-ECR  ${process.env.ENV_NAME}`);
 });
 
 
