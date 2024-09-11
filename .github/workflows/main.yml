@@ -373,19 +373,22 @@ jobs:
       - name: Update ECS Task Definition
         id: task-def
         run: |
-          # Get the current task definition
-          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition ${{ env.SERVICE_NAME }} | jq '.taskDefinition')
-
+          # Get the current task definition (use task definition name, not service name)
+          CURRENT_TASK_DEF=$(aws ecs describe-task-definition --task-definition test-demo | jq '.taskDefinition')
+        
           # Replace the image in the task definition
           NEW_IMAGE="${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest"
           UPDATED_TASK_DEF=$(echo $CURRENT_TASK_DEF | jq --arg IMAGE "$NEW_IMAGE" '.containerDefinitions[0].image = $IMAGE')
-
-          # Remove unwanted fields (revision, status, etc.) from the task definition before registering a new revision
+        
+          # Remove unwanted fields (revision, status, etc.) before registering a new revision
           CLEANED_TASK_DEF=$(echo $UPDATED_TASK_DEF | jq 'del(.status, .revision, .taskDefinitionArn, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
-
-          # Register the new task definition
-          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$CLEANED_TASK_DEF" | jq -r '.taskDefinition.taskDefinitionArn')
-
+        
+          # Save cleaned task definition to a file for proper JSON formatting
+          echo "$CLEANED_TASK_DEF" > new-task-def.json
+        
+          # Register the new task definition using the cleaned JSON file
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json file://new-task-def.json | jq -r '.taskDefinition.taskDefinitionArn')
+        
           echo "New task definition ARN: $NEW_TASK_DEF_ARN"
           echo "::set-output name=task-def-arn::$NEW_TASK_DEF_ARN"
 
