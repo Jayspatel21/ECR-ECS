@@ -302,7 +302,7 @@ jobs:
             --service ${{ env.SERVICE_NAME }} \
             --task-definition ${{ env.TASK_DEFINITION_ARN }} \
             --force-new-deployment \
-            --deployment-configuration maximumPercent=100,minimumHealthyPercent=50 \
+            --deployment-configuration maximumPercent=200,minimumHealthyPercent=100 \
             --region ${{ env.AWS_REGION }}
 
       - name: Wait for service stability
